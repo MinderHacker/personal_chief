@@ -1,0 +1,7 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+        "agent": "./routers/personal_chief.py:agent"
+    },
+    "env": ".env"
+}

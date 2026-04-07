@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 私人厨师 - 智能食谱推荐</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.19.1.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 - 会话列表 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>AI 私人厨师</h1>
+                        <p>智能食谱推荐</p>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="new-chat-btn" onclick="createNewChat()">
+                <i class="fas fa-plus"></i>
+                <span>新建会话</span>
+            </button>
+            
+            <div class="chat-history" id="chatHistory">
+                <!-- 会话列表将动态生成 -->
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span>访客用户</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部导航 -->
+            <header class="header">
+                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="header-title">
+                    <span id="currentChatTitle">新会话</span>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="clearCurrentChat()" title="清空对话">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- 聊天区域 -->
+            <div class="chat-container" id="chatContainer">
+                <!-- 空状态 -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">
+                        <i class="fas fa-carrot"></i>
+                    </div>
+                    <h2>上传食材图片开始吧</h2>
+                    <p>我会帮您识别食材并推荐食谱</p>
+                    <div class="quick-actions">
+                        <button class="quick-btn" onclick="setQuickMessage('我有土豆和鸡蛋，能做什么菜？')">
+                            <i class="fas fa-drumstick-bite"></i>
+                            土豆鸡蛋
+                        </button>
+                        <button class="quick-btn" onclick="setQuickMessage('西红柿和鸡蛋可以做什么？')">
+                            <i class="fas fa-apple-alt"></i>
+                            西红柿鸡蛋
+                        </button>
+                        <button class="quick-btn" onclick="setQuickMessage('推荐几道快手菜')">
+                            <i class="fas fa-fire"></i>
+                            快手菜
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 消息列表 -->
+                <div class="messages" id="messages"></div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="input-area">
+                <!-- 图片预览 -->
+                <div class="image-preview-container" id="imagePreviewContainer" style="display: none;">
+                    <div class="image-preview">
+                        <img id="imagePreview" src="" alt="预览">
+                        <button class="remove-image" onclick="removeImage()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-wrapper">
+                    <div class="input-box">
+                        <button class="attach-btn" onclick="document.getElementById('imageInput').click()">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                        
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="输入食材清单或描述..." 
+                            rows="1"
+                            oninput="autoResize(this)"
+                            onkeydown="handleKeyDown(event)"
+                        ></textarea>
+                        
+                        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <p class="input-hint">按 Enter 发送，Shift + Enter 换行</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 加载动画 -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>AI 正在思考中...</p>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.19.1.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
