@@ -6,6 +6,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from pathlib import Path
 from app.api import chat
 
@@ -26,6 +28,16 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 app.include_router(chat.router, tags=["Chat"])
 
+class DisableStaticCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # 开发阶段关闭静态资源缓存，避免浏览器 304 继续使用旧 app.js 导致“发了图片但后端收不到/不走识别”
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+app.add_middleware(DisableStaticCacheMiddleware)
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     """返回前端页面"""
@@ -42,4 +54,4 @@ if __name__ == "__main__":
     import uvicorn
 
     # 启动命令：python -m app.main
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8001, reload=True)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8006)

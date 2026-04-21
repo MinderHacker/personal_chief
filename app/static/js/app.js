@@ -157,20 +157,36 @@ function switchChat(threadId) {
     loadCurrentChat();
 }
 
-function deleteChat(threadId) {
+async function deleteChat(threadId) {
     if (!confirm('确定要删除这个会话吗？')) return;
     
-    chatHistory = chatHistory.filter(c => c.id !== threadId);
-    saveChatHistory();
-    
-    // 如果删除的是当前会话，创建新会话
-    if (threadId === currentThreadId) {
-        createNewChat();
-    } else {
-        renderChatHistory();
+    try {
+        // 调用后端删除接口
+        const response = await fetch(`${API_BASE_URL}/api/chat/delete_by_thread_id?thread_id=${threadId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // 从前端历史记录中删除
+            chatHistory = chatHistory.filter(c => c.id !== threadId);
+            saveChatHistory();
+            
+            // 如果删除的是当前会话，创建新会话
+            if (threadId === currentThreadId) {
+                createNewChat();
+            } else {
+                renderChatHistory();
+            }
+            
+            showToast('会话已删除');
+        } else {
+            const errorData = await response.json();
+            showToast(`删除失败: ${errorData.message || '未知错误'}`, 'error');
+        }
+    } catch (error) {
+        console.error('删除会话失败:', error);
+        showToast('删除会话失败，请重试', 'error');
     }
-    
-    showToast('会话已删除');
 }
 
 function updateChatTitle(message) {
@@ -315,25 +331,68 @@ async function handleImageSelect(event) {
     showLoading();
 
     try {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            selectedImage = e.target.result;
-            const preview = document.getElementById('imagePreview');
-            const container = document.getElementById('imagePreviewContainer');
-            preview.src = selectedImage;
-            container.style.display = 'block';
-            showToast('图片上传成功', 'success');
-            hideLoading();
-        };
-        reader.onerror = function() {
-            throw new Error('读取图片失败');
-        };
-        reader.readAsDataURL(file);
+        // 读取原始 dataURL（可能是 avif/heic/webp 等），再统一转成 JPEG，确保后端/模型可识别
+        const originalDataUrl = await readFileAsDataURL(file);
+        selectedImage = await convertDataUrlToJpeg(originalDataUrl, {
+            maxWidth: 1280,
+            maxHeight: 1280,
+            quality: 0.9
+        });
+
+        const preview = document.getElementById('imagePreview');
+        const container = document.getElementById('imagePreviewContainer');
+        preview.src = selectedImage;
+        container.style.display = 'block';
+        showToast('图片上传成功（已转为JPEG）', 'success');
+        hideLoading();
     } catch (error) {
         console.error('上传图片失败:', error);
         showToast(`上传图片失败: ${error.message}`, 'error');
         hideLoading();
     }
+}
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function convertDataUrlToJpeg(dataUrl, { maxWidth = 1280, maxHeight = 1280, quality = 0.9 } = {}) {
+    // 通过浏览器解码（支持 avif/webp 等），再用 canvas 导出 JPEG
+    const img = await loadImageFromDataUrl(dataUrl);
+    const { width, height } = fitWithin(img.naturalWidth || img.width, img.naturalHeight || img.height, maxWidth, maxHeight);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 初始化失败');
+
+    // 白底（避免透明 PNG 转 JPEG 背景变黑）
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    return canvas.toDataURL('image/jpeg', quality);
+}
+
+function loadImageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('图片解码失败（浏览器无法打开该格式）'));
+        img.src = dataUrl;
+    });
+}
+
+function fitWithin(srcW, srcH, maxW, maxH) {
+    if (!srcW || !srcH) return { width: maxW, height: maxH };
+    const ratio = Math.min(maxW / srcW, maxH / srcH, 1);
+    return { width: Math.round(srcW * ratio), height: Math.round(srcH * ratio) };
 }
 
 function removeImage() {
@@ -377,8 +436,11 @@ async function sendMessage() {
         return;
     }
     
+    // 保存当前选中的图片
+    const currentImage = selectedImage;
+    
     // 添加用户消息到界面
-    appendMessage('user', message, selectedImage);
+    appendMessage('user', message, currentImage);
     
     // 更新会话标题
     if (message) {
@@ -389,12 +451,17 @@ async function sendMessage() {
     input.value = '';
     input.style.height = 'auto';
     
+    // 立即清除图片，避免下条消息误带图
+    if (currentImage) {
+        removeImage();
+    }
+    
     // 显示加载动画
     showLoading();
     
     // 发送请求
     try {
-        await streamChat(message);
+        await streamChat(message, currentImage);
     } catch (error) {
         console.error('发送消息失败:', error);
         showToast('发送消息失败，请重试', 'error');
@@ -402,8 +469,11 @@ async function sendMessage() {
     }
 }
 
-async function streamChat(message) {
+async function streamChat(message, currentImage) {
     isStreaming = true;
+    
+    // 立即隐藏加载动画，只显示消息气泡中的打字指示器
+    hideLoading();
     
     // 创建AI消息容器
     const container = document.getElementById('messages');
@@ -434,6 +504,11 @@ async function streamChat(message) {
             message: message,
             thread_id: currentThreadId
         };
+
+        // 如果用户选择了图片（base64 data URL），一并发给后端用于识别
+        if (currentImage) {
+            requestBody.image_url = currentImage;
+        }
         
         const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
             method: 'POST',
@@ -471,13 +546,11 @@ async function streamChat(message) {
         timeDiv.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
         contentDiv.appendChild(timeDiv);
         
-        hideLoading();
         showToast('回复完成', 'success');
         
     } catch (error) {
         console.error('流式响应错误:', error);
         bubble.innerHTML = '<span style="color: #ef4444;">抱歉，发生了错误，请重试。</span>';
-        hideLoading();
     } finally {
         isStreaming = false;
     }
