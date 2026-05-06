@@ -9,6 +9,7 @@ from app.common.logger import logger
 from app.rag.service import vision
 from app.rag.rag import RagService
 from app.rag.history.file_history_store import FileChatMessageHistory
+from langchain_community.chat_models.tongyi import ChatTongyi
 from pathlib import Path
 import app.rag.config_data as config
 
@@ -45,6 +46,12 @@ async def chat(request: ChatRequest):
         stream_agent_response(request.message, request.thread_id),
         media_type="text/plain; charset=utf-8"
     )
+
+
+async def _rewrite_query(text: str) -> str:
+    model = ChatTongyi(model=config.chat_model_name)
+    result = await model.ainvoke(f"将以下问题改写为更适合食谱检索的查询，只输出改写结果，不要解释：\n{text}")
+    return result.content.strip() or text
 
 
 async def stream_agent_response(messages, thread_id):
@@ -113,7 +120,8 @@ async def stream_agent_response(messages, thread_id):
         # =========================
         else:
             logger.info("[Router] 纯文本 → RAG")
-            final_input = text
+            final_input = await _rewrite_query(text)
+            logger.info(f"[QueryRewrite] {text!r} → {final_input!r}")
 
         # =========================
         # RAG 调用（仅文本）
