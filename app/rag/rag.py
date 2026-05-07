@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 from langchain_classic.retrievers import EnsembleRetriever
+from langchain_classic.retrievers.contextual_compression import ContextualCompressionRetriever
+from app.rag.service.reranker import DashScopeReranker
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -79,22 +81,24 @@ class RagService(object):
         :return:
         """
 
-        # 获取检索器
-        # 语义检索
-        vector_retriever = self.vector_store.get_retriever()
-        # 关键词检索
-        bm25_retriever = self.vector_store.get_bm25_retriever()
-        
-        # 根据是否有文档选择检索器
+        # 获取检索器（扩大召回量，给 reranker 更多候选）
+        vector_retriever = self.vector_store.get_retriever(k=config.retrieval_k)
+        bm25_retriever = self.vector_store.get_bm25_retriever(k=config.retrieval_k)
+
         if bm25_retriever:
-            # 如果有文档，使用多路召回
-            retriever = EnsembleRetriever(
+            base_retriever = EnsembleRetriever(
                 retrievers=[vector_retriever, bm25_retriever],
                 weights=[0.5, 0.5]
             )
         else:
-            # 如果没有文档，只使用向量检索器
-            retriever = vector_retriever
+            base_retriever = vector_retriever
+
+        # 重排序：从多路召回结果中精选 top_n
+        reranker = DashScopeReranker(model=config.rerank_model_name, top_n=config.rerank_top_n)
+        retriever = ContextualCompressionRetriever(
+            base_compressor=reranker,
+            base_retriever=base_retriever,
+        )
 
         def format_docs(docs):
             print(f"检索返回文档数量: {len(docs)}")

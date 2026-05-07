@@ -18,25 +18,25 @@ class VectorStoreService(object):
             persist_directory=config.persist_directory,
         )
 
-    def get_retriever(self):
+    def get_retriever(self, k: int = None):
         """返回向量检索器，方便加入chain"""
+        k = k or config.similarity_threshold
         return self.vector_store.as_retriever(search_type="similarity",
-                                              search_kwargs={"k": config.similarity_threshold})
+                                              search_kwargs={"k": k})
 
-    # 获取BM25关键词检索器
-    def get_bm25_retriever(self):
+    def get_bm25_retriever(self, k: int = None):
         """返回BM25关键词检索器"""
+        k = k or config.similarity_threshold
         docs = self.vector_store.get()
         texts = docs.get("documents", [])
         metadatas = docs.get("metadatas", []) or [{}] * len(texts)
-        
-        # 如果没有文档，返回None
+
         if not texts:
             return None
-            
+
         from langchain_core.documents import Document
         documents = [Document(page_content=t, metadata=m) for t, m in zip(texts, metadatas)]
-        return BM25Retriever.from_documents(documents, k=config.similarity_threshold)
+        return BM25Retriever.from_documents(documents, k=k)
 
 
 if __name__ == '__main__':

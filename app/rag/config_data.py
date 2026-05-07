@@ -32,6 +32,11 @@ max_split_char_number = 500  # 文本分割的阈值
 # 向量检索
 similarity_threshold = 4  # 检索返回匹配的文档数量
 
+# 重排序
+rerank_model_name = "gte-rerank"
+retrieval_k = 10     # 初始召回数量（扩大以给 reranker 更多候选）
+rerank_top_n = 4     # reranker 最终返回文档数
+
 # 文本对话模型（RAG 生成用）：建议使用纯文本模型
 chat_model_name = "qwen-plus"
 
