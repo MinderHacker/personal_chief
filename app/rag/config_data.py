@@ -10,7 +10,7 @@ load_dotenv()
 
 # md5文件
 project_root = Path(__file__).resolve().parents[2]
-md5_path = str(project_root / "upload" / "md5.txt")
+md5_path = str(project_root / "app" / "rag" / "upload" / "md5.txt")
 
 # aliyun
 # 兼容地址用于 OpenAI-compatible 客户端（例如 base_url=".../compatible-mode/v1"）
@@ -34,8 +34,8 @@ similarity_threshold = 4  # 检索返回匹配的文档数量
 
 # 重排序
 rerank_model_name = "gte-rerank"
-retrieval_k = 10     # 初始召回数量（扩大以给 reranker 更多候选）
-rerank_top_n = 4     # reranker 最终返回文档数
+retrieval_k = 10  # 初始召回数量（扩大以给 reranker 更多候选）
+rerank_top_n = 4  # reranker 最终返回文档数
 
 # 文本对话模型（RAG 生成用）：建议使用纯文本模型
 chat_model_name = "qwen-plus"

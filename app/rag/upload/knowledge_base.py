@@ -10,8 +10,15 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import app.rag.config_data as config
 import os
 import hashlib
+from pathlib import Path
 
 os.environ["DASHSCOPE_API_KEY"] = config.DASHSCOPE_API_KEY
+
+
+def ensure_md5_dir():
+    """确保md5文件所在目录存在"""
+    md5_file = Path(config.md5_path)
+    md5_file.parent.mkdir(parents=True, exist_ok=True)
 
 
 def check_md5(md5_str: str):
@@ -19,6 +26,9 @@ def check_md5(md5_str: str):
     检查传入的md5字符串是否已经被处理过
      return False(md5未处理过)  True(已经处理过，已有记录）
     """
+    # 确保目录存在
+    ensure_md5_dir()
+
     if not os.path.exists(config.md5_path):
         # 进入表示文件不存在，那肯定没有处理过这个md5了
         open(config.md5_path, "w", encoding='utf-8').close()
@@ -33,6 +43,8 @@ def check_md5(md5_str: str):
 
 def save_md5(md5_str: str):
     """将传入的md5保存到文件"""
+    # 确保目录存在
+    ensure_md5_dir()
     with open(config.md5_path, "a", encoding='utf-8') as f:
         f.write(md5_str + "\n")
 

@@ -1,11 +1,19 @@
 """
 基于streamlit实现网页上传文件
 pip install streamlit
-运行：streamlit run app_file_upload.py
+运行：streamlit run app/rag/upload/app_file_upload.py
 """
+import sys
+from pathlib import Path
+
+# 添加项目根目录到 sys.path
+project_root = Path(__file__).resolve().parents[3]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import time
 import streamlit as st
-from knowledge_base import KnowledgeBaseService
+from app.rag.upload.knowledge_base import KnowledgeBaseService
 
 
 st.title("文件上传")
