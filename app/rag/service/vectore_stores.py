@@ -1,6 +1,8 @@
 """向量存储器
 """
 from langchain_chroma import Chroma
+from langchain_community.retrievers import BM25Retriever
+
 import app.rag.config_data as config
 import os
 
@@ -20,6 +22,21 @@ class VectorStoreService(object):
         """返回向量检索器，方便加入chain"""
         return self.vector_store.as_retriever(search_type="similarity",
                                               search_kwargs={"k": config.similarity_threshold})
+
+    # 获取BM25关键词检索器
+    def get_bm25_retriever(self):
+        """返回BM25关键词检索器"""
+        docs = self.vector_store.get()
+        texts = docs.get("documents", [])
+        metadatas = docs.get("metadatas", []) or [{}] * len(texts)
+        
+        # 如果没有文档，返回None
+        if not texts:
+            return None
+            
+        from langchain_core.documents import Document
+        documents = [Document(page_content=t, metadata=m) for t, m in zip(texts, metadatas)]
+        return BM25Retriever.from_documents(documents, k=config.similarity_threshold)
 
 
 if __name__ == '__main__':

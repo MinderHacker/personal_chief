@@ -30,7 +30,7 @@ separators = ["\n\n", "\n", ".", "!", "?", "。", "！", "？", " ", ""]
 max_split_char_number = 500  # 文本分割的阈值
 
 # 向量检索
-similarity_threshold = 1  # 检索返回匹配的文档数量
+similarity_threshold = 4  # 检索返回匹配的文档数量
 
 # 文本对话模型（RAG 生成用）：建议使用纯文本模型
 chat_model_name = "qwen-plus"

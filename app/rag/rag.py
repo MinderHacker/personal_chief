@@ -6,6 +6,8 @@ rag服务
 import sys
 from pathlib import Path
 
+from langchain_classic.retrievers import EnsembleRetriever
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -78,9 +80,26 @@ class RagService(object):
         """
 
         # 获取检索器
-        retriever = self.vector_store.get_retriever()
+        # 语义检索
+        vector_retriever = self.vector_store.get_retriever()
+        # 关键词检索
+        bm25_retriever = self.vector_store.get_bm25_retriever()
+        
+        # 根据是否有文档选择检索器
+        if bm25_retriever:
+            # 如果有文档，使用多路召回
+            retriever = EnsembleRetriever(
+                retrievers=[vector_retriever, bm25_retriever],
+                weights=[0.5, 0.5]
+            )
+        else:
+            # 如果没有文档，只使用向量检索器
+            retriever = vector_retriever
 
         def format_docs(docs):
+            print(f"检索返回文档数量: {len(docs)}")
+            for i, doc in enumerate(docs):
+                print(f"文档 {i + 1}: {doc.page_content[:50]}...")
             if not docs:
                 return "无参考资料"
             return "\n\n".join(doc.page_content for doc in docs)
